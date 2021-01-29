@@ -10,12 +10,13 @@ from queue import Queue
 
 
 def parser():
+    print(1)
     parser = argparse.ArgumentParser(description="YOLO Object Detection")
     parser.add_argument("--input", type=str, default=0,
                         help="video source. If empty, uses webcam 0 stream")
     parser.add_argument("--out_filename", type=str, default="",
                         help="inference video name. Not saved if empty")
-    parser.add_argument("--weights", default="yolov4.weights",
+    parser.add_argument("--weights", default="weights/yolov4-tiny.weights",
                         help="yolo weights path")
     parser.add_argument("--dont_show", action='store_true',
                         help="windown inference display. For headless systems")
@@ -31,6 +32,7 @@ def parser():
 
 
 def str2int(video_path):
+    print(2)
     """
     argparse returns and string althout webcam uses int (0, 1 ...)
     Cast to int if needed
@@ -42,6 +44,7 @@ def str2int(video_path):
 
 
 def check_arguments_errors(args):
+    print(3)
     assert 0 < args.thresh < 1, "Threshold should be a float between zero and one (non-inclusive)"
     if not os.path.exists(args.config_file):
         raise(ValueError("Invalid config path {}".format(os.path.abspath(args.config_file))))
@@ -54,6 +57,7 @@ def check_arguments_errors(args):
 
 
 def set_saved_video(input_video, output_video, size):
+    print(4)
     fourcc = cv2.VideoWriter_fourcc(*"MJPG")
     fps = int(input_video.get(cv2.CAP_PROP_FPS))
     video = cv2.VideoWriter(output_video, fourcc, fps, size)
@@ -61,6 +65,7 @@ def set_saved_video(input_video, output_video, size):
 
 
 def video_capture(frame_queue, darknet_image_queue):
+    print(5)
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -75,6 +80,7 @@ def video_capture(frame_queue, darknet_image_queue):
 
 
 def inference(darknet_image_queue, detections_queue, fps_queue):
+    print(6)
     while cap.isOpened():
         darknet_image = darknet_image_queue.get()
         prev_time = time.time()
@@ -89,6 +95,7 @@ def inference(darknet_image_queue, detections_queue, fps_queue):
 
 
 def drawing(frame_queue, detections_queue, fps_queue):
+    print(7)
     random.seed(3)  # deterministic bbox colors
     video = set_saved_video(cap, args.out_filename, (width, height))
     while cap.isOpened():
