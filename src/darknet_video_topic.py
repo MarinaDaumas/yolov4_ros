@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from ctypes import *
 import random
 import os
@@ -26,7 +28,7 @@ class_names = None
 class_colors = None
 thresh = None
 
-
+save_imgs = True
 camera_selection = "front"
 bridge = None
 
@@ -39,7 +41,7 @@ detections_queue = None
 fps_queue = None
 
 ext_output = None
-dont_show = None
+dont_show = True
 
 def load_args():
     '''
@@ -51,11 +53,10 @@ def load_args():
     rospack = rospkg.RosPack()
     path_to_darknet = rospack.get_path('darknet_v4')
     
-
     configPath = path_to_darknet + "/src/cfg/yolov4-tiny.cfg"
     weightPath = path_to_darknet + "/src/weights/yolov4-tiny.weights"
-    dataFile = path_to_darknet + "/src/cfg/coco.data"
-
+    dataFile = path_to_darknet+ "/src/cfg/coco.data"
+    
     thresh = .25 #remove detections with confidence below this value
     
     return configPath, weightPath, dataFile
@@ -96,60 +97,55 @@ def set_saved_video(input_video, output_video, size):
     return video
 
 
-def video_capture(frame, frame_queue, darknet_image_queue):
+def video_capture(frame):
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_resized = cv2.resize(frame_rgb, (width, height),
                                interpolation=cv2.INTER_LINEAR)
-    frame_queue.put(frame_resized)
+    
     darknet.copy_image_from_bytes(darknet_image, frame_resized.tobytes())
-    darknet_image_queue.put(darknet_image)
+    return frame_resized, darknet_image
 
 
+def inference(darknet_image):
 
-def inference(darknet_image_queue, detections_queue, fps_queue):
-    while True:
-        darknet_image = darknet_image_queue.get()
-        prev_time = time.time()
-        detections = darknet.detect_image(network, class_names, darknet_image, thresh=thresh)
-        detections_queue.put(detections)
-        fps = int(1/(time.time() - prev_time))
-        fps_queue.put(fps)
-        print("FPS: {}".format(fps))
-        darknet.print_detections(detections, ext_output)
-        darknet.free_image(darknet_image)
+    prev_time = time.time()
+    detections = darknet.detect_image(network, class_names, darknet_image, thresh=thresh)
+    fps = int(1/(time.time() - prev_time))
+    
+    print("FPS: {}".format(fps))
+    darknet.print_detections(detections, ext_output)
+    detections_pub.publish(detections)
+    
 
-        detections_pub.publish(detections)
+    return detections, fps
 
-        print(detections)
-
-
-def drawing(frame_queue, detections_queue, fps_queue):
+def drawing(frame_resized, detections):
     random.seed(3)  # deterministic bbox colors
-    #video = set_saved_video(cap, args.out_filename, (width, height))
-    print('pq n')
-    while True:
-        frame_resized = frame_queue.get()
-        detections = detections_queue.get()
-        fps = fps_queue.get()
-        if frame_resized is not None:
-            image = darknet.draw_boxes(detections, frame_resized, class_colors)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            #if args.out_filename is not None:
-            #    video.write(image)
-            if not dont_show:
-                cv2.imshow('Inference', image)
-            if cv2.waitKey(fps) == 27:
-                break
-        image_pub.publish(bridge.cv2_to_imgmsg(image, "bgr8"))
-        print('foi')
-        cv2.imshow(image)
+    
+    if frame_resized is not None:
+        image = darknet.draw_boxes(detections, frame_resized, class_colors)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        if not dont_show:
+            cv2.imshow('Inference', image)
+
+    image_pub.publish(bridge.cv2_to_imgmsg(image, "bgr8"))
+    #cv2.imshow('',image)
 
     if detections != [] and save_imgs:
         save_image(image)
 
-    video.release()
-    cv2.destroyAllWindows()
 
+def save_image(im0):
+    '''
+    Saves images of the detections
+    '''
+    
+    rospack = rospkg.RosPack()
+    path_to_darknet = rospack.get_path('darknet_v4')
+    
+    save_path = path_to_darknet + '/src/saved_img/' + str(time.time()) + ".jpg"
+    cv2.imwrite(save_path, im0)
 
 def selection_callback(data):
     '''
@@ -187,9 +183,9 @@ def run_darknet(data):
 
     frame = bridge.imgmsg_to_cv2(data)
     
-    video_capture(frame, frame_queue, darknet_image_queue)
-    inference(darknet_image_queue, detections_queue, fps_queue)
-    drawing(frame_queue, detections_queue, fps_queue)
+    frame_resized, darknet_image = video_capture(frame)
+    detections, fps = inference(darknet_image)
+    drawing(frame_resized, detections)
 
     print(1/(time.time()-prev_time))
 
@@ -203,14 +199,7 @@ def YOLO():
     configPath, weightPath, dataFile = load_args()
     check_arguments_errors(configPath, weightPath, dataFile)
     darknet_image = load_network(configPath, weightPath, dataFile) 
-
-    frame_queue = Queue()
-    darknet_image_queue = Queue(maxsize=1)
-    detections_queue = Queue(maxsize=1)
-    fps_queue = Queue(maxsize=1)
-
     
-
     detections_pub = rospy.Publisher('darknetv4', DetectionArray, queue_size=10)
     image_pub = rospy.Publisher("darknet_image", Image, queue_size=10)
 
@@ -218,8 +207,8 @@ def YOLO():
 
     rospy.Subscriber('/change_camera', String, selection_callback)
 
-    #rospy.Subscriber('/camera/left/image_raw', Image, front_callback)
-    rospy.Subscriber('/usb_cam/image_raw', Image, front_callback)
+    rospy.Subscriber('/camera/left/image_raw', Image, front_callback)
+    #rospy.Subscriber('/usb_cam/image_raw', Image, front_callback)
     rospy.Subscriber('/camera/bottom/left/image_raw', Image, bottom_callback)
     
     bridge = CvBridge()

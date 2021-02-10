@@ -25,7 +25,7 @@ from ctypes import *
 import math
 import random
 import os
-
+import rospkg
 
 class BOX(Structure):
     _fields_ = [("x", c_float),
@@ -220,8 +220,12 @@ if os.name == "nt":
             lib = CDLL(winGPUdll, RTLD_GLOBAL)
             print("Environment variables indicated a CPU run, but we didn't find {}. Trying a GPU run anyway.".format(winNoGPUdll))
 else:
+    rospack = rospkg.RosPack()
+    path_to_darknet = rospack.get_path('darknet_v4')
+    path_to_darknet = os.path.join(path_to_darknet, 'src')
+
     lib = CDLL(os.path.join(
-        os.environ.get('DARKNET_PATH', './'),
+        os.environ.get('DARKNET_PATH', path_to_darknet),
         "libdarknet.so"), RTLD_GLOBAL)
 lib.network_width.argtypes = [c_void_p]
 lib.network_width.restype = c_int

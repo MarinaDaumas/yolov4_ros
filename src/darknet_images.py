@@ -152,7 +152,7 @@ def image_classification(image, network, class_names):
 def convert2relative(image, bbox):
     """
     YOLO format use relative coordinates for annotation
-    """
+    """ 
     x, y, w, h = bbox
     height, width, _ = image.shape
     return x/width, y/height, w/width, h/height
