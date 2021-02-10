@@ -2,17 +2,23 @@
 darknet_v4 is a package that connects darknet and ros. 
 
 # Instalation and Setup
-Fist you need cv_bridge to work on python3. Follow [this tutorial](https://medium.com/@beta_b0t/how-to-setup-ros-with-python-3-44a69ca36674) and then add the path of the used workspace to your .bashrc.
+First install [OpenCV](https://www.learnopencv.com/install-opencv-3-4-4-on-ubuntu-18-04/) < 4.0 
+
+Then go to /darknet/src directory and run
+```
+$ make
+```
+In case it doesn't work go to the Makefile and check if the options of make and architecture are the correct ones. 
 
 # Usage
 
 
 # Message
-The detec_from_topic node publishes at /yolov5 and /detection_image topics. 
+The detec_from_topic node publishes at /darknetv4 and /darknet_image topics. 
 
 To see the detections message run
 ```bash
-rostopic echo /yolov5
+rostopic echo /darknetv4
 ```
 
 The published message is an array of type Detections, containing the following parameters:
@@ -25,7 +31,7 @@ The published message is an array of type Detections, containing the following p
 
 To see the image with detection boxes run
 ```bash
-rosrun image_view image_view image:=/detection_image
+rosrun image_view image_view image:=/darknet_image
 ```
 # Dependencies
 You must have the following package installed [robosub_messages](https://gitlab.com/nautilusufrj/brhue/robosub_msgs). 
