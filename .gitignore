@@ -48,9 +48,6 @@ build/.ninja_deps
 build/.ninja_log
 build/Makefile
 
-src/cfg/*
-src/data/*
-
 # OS Generated #
 .DS_Store*
 ehthumbs.db

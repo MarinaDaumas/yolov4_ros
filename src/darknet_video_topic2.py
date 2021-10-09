@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from ctypes import *
 import random
 import os
@@ -71,15 +69,13 @@ def video_capture(frame_queue, darknet_image_queue):
         frame_resized = cv2.resize(frame_rgb, (width, height),
                                    interpolation=cv2.INTER_LINEAR)
         frame_queue.put(frame_resized)
-        img_for_detect = darknet.make_image(width, height, 3)
-        darknet.copy_image_from_bytes(img_for_detect, frame_resized.tobytes())
-        darknet_image_queue.put(img_for_detect)
+        darknet.copy_image_from_bytes(darknet_image, frame_resized.tobytes())
+        darknet_image_queue.put(darknet_image)
     cap.release()
 
 
 def inference(darknet_image_queue, detections_queue, fps_queue):
     while cap.isOpened():
-        prev_time = time.time()
         darknet_image = darknet_image_queue.get()
         prev_time = time.time()
         detections = darknet.detect_image(network, class_names, darknet_image, thresh=args.thresh)
@@ -87,13 +83,13 @@ def inference(darknet_image_queue, detections_queue, fps_queue):
         fps = int(1/(time.time() - prev_time))
         fps_queue.put(fps)
         print("FPS: {}".format(fps))
-        print(1/(time.time()-prev_time))
         darknet.print_detections(detections, args.ext_output)
         darknet.free_image(darknet_image)
     cap.release()
 
 
 def drawing(frame_queue, detections_queue, fps_queue):
+
     random.seed(3)  # deterministic bbox colors
     video = set_saved_video(cap, args.out_filename, (width, height))
     while cap.isOpened():
@@ -128,8 +124,11 @@ if __name__ == '__main__':
             args.weights,
             batch_size=1
         )
+    # Darknet doesn't accept numpy images.
+    # Create one with image we reuse for each detect
     width = darknet.network_width(network)
     height = darknet.network_height(network)
+    darknet_image = darknet.make_image(width, height, 3)
     input_path = str2int(args.input)
     cap = cv2.VideoCapture(input_path)
     Thread(target=video_capture, args=(frame_queue, darknet_image_queue)).start()
